@@ -1,5 +1,8 @@
 Converts xtc1 to xtc2 file  
-  
+
+Installation:  
+git clone --recurse-submodules git@github.com:monarin/xtc1to2.git    
+
 For SPI (spinifel/cmtip),
 Input: experiment id, run number  
 Output: xtc2 file with intensities and photon energy
@@ -13,9 +16,9 @@ Spinifel hdf5 file contains:
   - pixel_index_map  
   - intensities  
   - orientations  
-  - volume
-Obtain photon energy:
-Note from Chuck:  
+  - volume  
+Obtain photon energy:  
+Note from Chuck:    
 https://github.com/lcls-psana/psocake/blob/7d21e96961c04f149c64e9c810a8eff7f60d5982/psocake/peakFinderClient.py#L183  
 Code possibly needed:
 1. Photon Energy  
