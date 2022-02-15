@@ -27,7 +27,7 @@ photon_energy = phe_reader.get(event_num)
 ts = img_reader.timestamp(event_num)
 
 
-print(f'event_num={event_num} ts={ts} {img.shape} photon energy:{photon_energy:.3f}')
+print(f'event_num={event_num} ts={ts.time()} {img.shape} photon energy:{photon_energy:.3f}')
 print(f'pixel_position={gmt_reader.pixel_position.shape}')
 print(f'pixel_index_map={gmt_reader.pixel_index_map.shape}')
 
