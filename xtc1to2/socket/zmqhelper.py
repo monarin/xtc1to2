@@ -2,6 +2,7 @@ import zmq
 import numpy as np
 import zlib, pickle
 
+
 class ZmqSender:
     """A helper for sending messages using pyzmq.
 
@@ -17,7 +18,7 @@ class ZmqSender:
         context = zmq.Context()
         self.zmq_socket = context.socket(zmq.PUSH)
         self.zmq_socket.bind(socket)
-    
+
     def send_zipped_pickle(self, obj, flags=0, protocol=-1):
         """pickle an object, and zip the pickle before sending it"""
         p = pickle.dumps(obj, protocol)
@@ -27,15 +28,16 @@ class ZmqSender:
     def send_array(self, A, flags=0, copy=True, track=False):
         """send a numpy array with metadata"""
         md = dict(
-            dtype = str(A.dtype),
-            shape = A.shape,
+            dtype=str(A.dtype),
+            shape=A.shape,
         )
-        self.zmq_socket.send_json(md, flags|zmq.SNDMORE)
+        self.zmq_socket.send_json(md, flags | zmq.SNDMORE)
         return self.zmq_socket.send(A, flags, copy=copy, track=track)
 
 
 class ZmqReceiver:
     """A helper for receiving messages using pyzmq."""
+
     zmq_socket = None
 
     def __init__(self, socket):
@@ -54,5 +56,5 @@ class ZmqReceiver:
         """recv a numpy array"""
         msg = self.zmq_socket.recv(flags=flags, copy=copy, track=track)
         buf = memoryview(msg)
-        A = np.frombuffer(buf, dtype=md['dtype'])
-        return A.reshape(md['shape'])
+        A = np.frombuffer(buf, dtype=md["dtype"])
+        return A.reshape(md["shape"])
