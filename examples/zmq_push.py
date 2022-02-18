@@ -28,23 +28,34 @@ socket = "tcp://127.0.0.1:5557"
 zmq_send = ZmqSender(socket)
 
 # Access an image (e.g. event 796)...
-event_num = 796
-img = img_reader.get(event_num, calib=True)
-photon_energy = phe_reader.get(event_num)
-ts = img_reader.timestamp(event_num)
+start_evt = 796
+for event_num in range(start_evt, start_evt + 3):
+    img = img_reader.get(event_num, calib=True)
+    photon_energy = phe_reader.get(event_num)
+    ts = img_reader.timestamp(event_num)
 
-data = {
-    "calib": img,
-    "photon_energy": photon_energy,
-    "ts": ts.time(),
-    "pixel_position": gmt_reader.pixel_position,
-    "pixel_index_map": gmt_reader.pixel_index_map,
-}
+    if event_num == start_evt:
+        # Send beginning timestamp
+        start_dict = {"start": True, "config_timestamp": ts.time() - 10}
+        zmq_send.send_zipped_pickle(start_dict)
 
-print(
-    f"event_num={event_num} ts={ts.time()} {img.shape} photon energy:{photon_energy:.3f}"
-)
-print(f"pixel_position={gmt_reader.pixel_position.shape}")
-print(f"pixel_index_map={gmt_reader.pixel_index_map.shape}")
+    data = {
+        "calib": img,
+        "photon_energy": photon_energy,
+        "timestamp": ts.time(),
+        "pixel_position": gmt_reader.pixel_position,
+        "pixel_index_map": gmt_reader.pixel_index_map,
+    }
 
-# Send the dataset
+    print(
+        f"event_num={event_num} ts={ts.time()} {img.shape} photon energy:{photon_energy:.3f}"
+    )
+    print(f"pixel_position={gmt_reader.pixel_position.shape}")
+    print(f"pixel_index_map={gmt_reader.pixel_index_map.shape}")
+
+    # Send the dataset
+    zmq_send.send_zipped_pickle(data)
+
+# Send end message
+done_dict = {"end": True}
+zmq_send.send_zipped_pickle(done_dict)
