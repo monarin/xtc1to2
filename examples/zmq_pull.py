@@ -59,6 +59,10 @@ if __name__ == "__main__":
     zmq_recv = ZmqReceiver(socket)
 
 
+    # Tells dgrampy to write new dgrams to this given output filename
+    dp.creatextc2('out.xtc2')
+
+
     # Create config, algorithm, and detector
     config = dp.config()
     alg = dp.alg("raw", 1, 2, 3)
@@ -158,8 +162,5 @@ if __name__ == "__main__":
             current_timestamp = obj["timestamp"]
 
 
-    # Write out dgrampy buffer to xtc2 file
-    with open("out.xtc2", "wb") as f:
-        f.write(dp.get_buf())
-
+    dp.closextc2()
     test_output()
