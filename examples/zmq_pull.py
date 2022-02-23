@@ -44,6 +44,7 @@ def test_output():
 
 
 if __name__ == "__main__":
+    flag_test = False
 
     # NameId setup
     nodeId = 1 
@@ -163,4 +164,6 @@ if __name__ == "__main__":
 
 
     dp.closextc2()
-    test_output()
+
+    if flag_test:
+        test_output()
