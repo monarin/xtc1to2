@@ -1,9 +1,14 @@
 from psana import DataSource
+import os
+
+# Need to increase smd0's chunk size for step data
+os.environ['PS_SMD_CHUNKSIZE'] = '268435456'
 
 
 # Start datasource
-xtc_dir = "/cds/home/m/monarin/tmp/amo06516"
-ds = DataSource(exp="amo06516", run=85, dir=xtc_dir)
+#xtc_dir = '/cds/home/m/monarin/xtc1to2/examples/data'
+xtc_dir = '/cds/data/drpsrcf/users/monarin/amo06516/'
+ds = DataSource(exp="amo06516", run=90, dir=xtc_dir)
 run = next(ds.runs())
 
 
@@ -15,17 +20,12 @@ pim_det = run.Detector("pixel_index_map")
 
 # Access events
 for nevt, evt in enumerate(run.events()):
-    # Save images in a list
-    calibs.append(det.raw.calib(evt))
+    calib = det.raw.calib(evt)
 
     # Per run variables
     photon_energy = det.raw.photon_energy(evt)
     pixel_position = pp_det(evt)
     pixel_index_map = pim_det(evt)
-
-    # Ideal world spinifel
-    if nevt == N_images_per_rank:
-        solve_ac(calibs, photon_energy, pixel_position, pixel_index_map)
 
     print(
         evt.timestamp,
