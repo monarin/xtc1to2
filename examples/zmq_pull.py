@@ -7,7 +7,7 @@ Usage:
     2. Receive data from zmq
 """
 from xtc1to2.socket.zmqhelper import ZmqReceiver
-import dgrampy as dp
+from psana.dgrampy import DgramPy, AlgDef, DetectorDef
 from psana.psexp import TransitionId
 import numpy as np
 import h5py
@@ -59,59 +59,56 @@ if __name__ == "__main__":
     socket = "tcp://127.0.0.1:5557"
     zmq_recv = ZmqReceiver(socket)
 
+    
+    # Open output file for writing
+    ofname = 'out.xtc2'
+    xtc2file = open(ofname, "wb")
 
-    # Tells dgrampy to write new dgrams to this given output filename
-    dp.creatextc2('out.xtc2')
-
-
+    
     # Create config, algorithm, and detector
-    config = dp.config()
-    alg = dp.alg("raw", 1, 2, 3)
-    det = dp.det("amopnccd", "pnccd", "detnum1234")
+    config = DgramPy(transition_id=TransitionId.Configure)
+    alg = AlgDef("raw", 1, 2, 3)
+    det = DetectorDef("amopnccd", "pnccd", "detnum1234")
 
-    runinfo_alg = dp.alg("runinfo", 0, 0, 1)
-    runinfo_det = dp.det("runinfo", "runinfo", "")
+    runinfo_alg = AlgDef("runinfo", 0, 0, 1)
+    runinfo_det = DetectorDef("runinfo", "runinfo", "")
 
-    scan_alg = dp.alg("raw", 2, 0, 0)
-    scan_det = dp.det("scan", "scan", "detnum1234")
+    scan_alg = AlgDef("raw", 2, 0, 0)
+    scan_det = DetectorDef("scan", "scan", "detnum1234")
 
 
     # Define data formats
-    datadef_dict = {
-        "calib": (dp.DataType.FLOAT, 3),
-        "photon_energy": (dp.DataType.DOUBLE, 0),
+    datadef = {
+        "calib": (np.float32, 3),
+        "photon_energy": (np.float64, 0),
     }
-    datadef = dp.datadef(datadef_dict)
 
-    runinfodef_dict = {
-        "expt": (dp.DataType.CHARSTR, 1),
-        "runnum": (dp.DataType.UINT32, 0),
+    runinfodef = {
+        "expt": (str, 1),
+        "runnum": (np.uint32, 0),
     }
-    runinfodef = dp.datadef(runinfodef_dict)
 
-    scandef_dict = {
-        "pixel_position": (dp.DataType.DOUBLE, 4),
-        "pixel_index_map": (dp.DataType.INT64, 4),
+    scandef = {
+        "pixel_position": (np.float64, 4),
+        "pixel_index_map": (np.int64, 4),
     }
-    scandef = dp.datadef(scandef_dict)
 
 
-    # Create Names
-    data_names = dp.names(
-        config, det, alg, datadef, nodeId=nodeId, namesId=namesId["amopnccd"], segment=0
-    )
-    runinfo_names = dp.names(
-        config,
-        runinfo_det,
-        runinfo_alg,
-        runinfodef,
-        nodeId=nodeId,
-        namesId=namesId["runinfo"],
-        segment=0,
-    )
-    scan_names = dp.names(
-        config, scan_det, scan_alg, scandef, nodeId=nodeId, namesId=namesId["scan"], segment=0
-    )
+    # Create detetors
+    pnccd = config.Detector(det, alg, datadef, nodeId=nodeId, namesId=namesId["amopnccd"])
+    runinfo = config.Detector(runinfo_det, 
+                              runinfo_alg, 
+                              runinfodef, 
+                              nodeId=nodeId, 
+                              namesId=namesId["runinfo"]
+                             )
+    scan = config.Detector(scan_det,
+                           scan_alg,
+                           scandef,
+                           nodeId=nodeId,
+                           namesId=namesId["scan"]
+                          )
+
 
 
     # Start saving data
@@ -122,48 +119,46 @@ if __name__ == "__main__":
         # to set the correct timestamp for all transitions prior to the first L1.
         if "start" in obj:
             config_timestamp = obj["config_timestamp"]
-            dp.updatetimestamp(config, config_timestamp)
-            dp.save(config)
+            config.updatetimestamp(config_timestamp)
+            config.save(xtc2file)
 
-            beginrun = dp.dgram(transid=TransitionId.BeginRun, ts=config_timestamp + 1)
-            beginrun_data = {"expt": "amo06516", "runnum": 90}
-            dp.adddata(beginrun, runinfo_names, runinfodef, beginrun_data)
-            dp.save(beginrun)
+            beginrun = DgramPy(transition_id=TransitionId.BeginRun, config=config, ts=config_timestamp + 1)
+            runinfo.runinfo.expt = "amo06516"
+            runinfo.runinfo.runnum = 90
+            beginrun.adddata(runinfo.runinfo)
+            beginrun.save(xtc2file)
             
-            beginstep = dp.dgram(transid=TransitionId.BeginStep, ts=config_timestamp + 2)
-            scan_data = {
-                'pixel_position': obj['pixel_position'],
-                'pixel_index_map': obj['pixel_index_map']
-            }
-            dp.adddata(beginstep, scan_names, scandef, scan_data)
-            dp.save(beginstep)
+            beginstep = DgramPy(transition_id=TransitionId.BeginStep, config=config, ts=config_timestamp + 2)
+            scan.raw.pixel_position = obj['pixel_position']
+            scan.raw.pixel_index_map = obj['pixel_index_map']
+            beginstep.adddata(scan.raw)
+            beginstep.save(xtc2file)
             
-            enable = dp.dgram(transid=TransitionId.Enable, ts=config_timestamp + 3)
-            dp.save(enable)
+            enable = DgramPy(transition_id=TransitionId.Enable, config=config, ts=config_timestamp + 3)
+            enable.save(xtc2file)
             current_timestamp = config_timestamp + 3
 
         elif "end" in obj:
-            disable = dp.dgram(transid=TransitionId.Disable, ts=current_timestamp + 1)
-            dp.save(disable)
-            endstep = dp.dgram(transid=TransitionId.EndStep, ts=current_timestamp + 2)
-            dp.save(disable)
-            endrun = dp.dgram(transid=TransitionId.EndRun, ts=current_timestamp + 3)
-            dp.save(endrun)
+            disable = DgramPy(transition_id=TransitionId.Disable, config=config, ts=current_timestamp + 1)
+            disable.save(xtc2file)
+            endstep = DgramPy(transition_id=TransitionId.EndStep, config=config, ts=current_timestamp + 2)
+            endstep.save(xtc2file)
+            endrun = DgramPy(transition_id=TransitionId.EndRun, config=config, ts=current_timestamp + 3)
+            endrun.save(xtc2file)
             break
 
         else:
             # Create L1Accept
-            d0 = dp.dgram(ts=obj["timestamp"])
-            data = {
-                "calib": obj["calib"],
-                "photon_energy": obj["photon_energy"],
-            }
-            dp.adddata(d0, data_names, datadef, data)
-            dp.save(d0)
+            d0 = DgramPy(transition_id=TransitionId.L1Accept, config=config, ts=obj["timestamp"])
+            pnccd.raw.calib = obj["calib"]
+            pnccd.raw.photon_energy = obj["photon_energy"]
+            d0.adddata(pnccd.raw)
+            d0.save(xtc2file)
             current_timestamp = obj["timestamp"]
 
 
-    dp.closextc2()
+
+    xtc2file.close()
 
     if flag_test:
         test_output()
