@@ -3,7 +3,8 @@ be saved in lcls2 format via zmq.
 
 Usage: 
     1. Get psana1 environment (source /reg/g/psdm/etc/psconda.sh) and 
-    activate py3 env. (conda activate ana-4.0.36-py3)
+    activate py3 env. (conda activate ana-4.0.38-py3)
+    export PYTHONPATH=$HOME/xtc1to2:$PYTHONPATH
     2. Set exp, run, mode, and detector name
     3. Set path to geometry file 
 """
