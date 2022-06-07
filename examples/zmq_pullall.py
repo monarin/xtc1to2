@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Receives data from zmq and save in xtc2 format.
 
 Usage:

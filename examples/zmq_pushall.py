@@ -18,7 +18,7 @@ import numpy as np
 import csv
 
 
-fl_csv          = "2022_0603_2226_44.auto.label.csv"
+fl_csv     = "2022_0603_2226_44.auto.label.csv"
 label_1hit = '1'
 
 # Specify the dataset and detector...
@@ -41,28 +41,31 @@ img_reader_dict = {}
 phe_reader_dict = {}
 with open(fl_csv) as csv_handle:
     lines = csv.reader(csv_handle)
+
+    # Skip the header...
+    next(lines)
+
+    # Go through each line...
     for line in lines:
-        # Skip the header...
-        next(lines)
+        exp, run, event_num, label = line
 
-        # Go through each line...
-        for line in lines:
-            exp, run, event_num, label = line
+        # Skip if not single hit...
+        if label != label_1hit: continue
 
-            # Specify the key to dictionaries...
-            basename = (exp, run)
+        # Specify the key to dictionaries...
+        basename = (exp, run)
 
-            # Collect run info from each exp,run...
-            if not basename in event_dict: event_dict[basename] = [event_num]
-            else                         : event_dict[basename].append(event_num)
+        # Collect run info from each exp,run...
+        if not basename in event_dict: event_dict[basename] = [event_num]
+        else                         : event_dict[basename].append(event_num)
 
-            # Collect img_reader from each exp,run...
-            if not basename in img_reader_dict: 
-                img_reader_dict[basename] = PsanaImg(exp, run, mode, detector_name)
+        # Collect img_reader from each exp,run...
+        if not basename in img_reader_dict: 
+            img_reader_dict[basename] = PsanaImg(exp, run, mode, detector_name)
 
-            # Collect photon energy from each exp,run...
-            if not basename in phe_reader_dict:
-                phe_reader_dict[basename] = PsanaPhotonEnergy(exp, run, mode)
+        # Collect photon energy from each exp,run...
+        if not basename in phe_reader_dict:
+            phe_reader_dict[basename] = PsanaPhotonEnergy(exp, run, mode)
 
 for i, (basename, event_num_list) in enumerate(event_dict.items()):
     exp, run = basename
