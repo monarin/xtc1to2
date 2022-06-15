@@ -89,8 +89,8 @@ if __name__ == "__main__":
     }
 
     scandef = {
-        "pixel_position": (np.float64, 4),
-        "pixel_index_map": (np.int64, 4),
+        "pixel_position": (np.float32, 4),
+        "pixel_index_map": (np.int16, 4),
     }
 
 
@@ -126,12 +126,15 @@ if __name__ == "__main__":
             runinfo.runinfo.expt = "amo06516"
             runinfo.runinfo.runnum = 90
             beginrun.adddata(runinfo.runinfo)
+            scan.raw.pixel_position = obj['pixel_position']
+            scan.raw.pixel_index_map = obj['pixel_index_map']
+            beginrun.adddata(scan.raw)
             beginrun.save(xtc2file)
             
             beginstep = DgramPy(transition_id=TransitionId.BeginStep, config=config, ts=config_timestamp + 2)
-            scan.raw.pixel_position = obj['pixel_position']
-            scan.raw.pixel_index_map = obj['pixel_index_map']
-            beginstep.adddata(scan.raw)
+            #scan.raw.pixel_position = obj['pixel_position']
+            #scan.raw.pixel_index_map = obj['pixel_index_map']
+            #beginstep.adddata(scan.raw)
             beginstep.save(xtc2file)
             
             enable = DgramPy(transition_id=TransitionId.Enable, config=config, ts=config_timestamp + 3)
