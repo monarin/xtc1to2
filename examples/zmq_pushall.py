@@ -27,7 +27,7 @@ def get_run_info():
     label 1: 1669
     label 2: 681
     """
-    fl_csv     = "2022_0603_2226_44.auto.label.csv"
+    fl_csv     = "2022_0603_2226_44.auto.label.diagnosis.csv"
     label_1hit = '1'
 
     # This is a dictionary with a key as run number. Each pointing
@@ -39,13 +39,14 @@ def get_run_info():
         #skip header
         next(lines)
         for line in lines:
-            exp, run, evt_no, label = line
+            exp, run, evt_no, label, ts = line
             if label != label_1hit: continue
             run = int(run)
+            run_data = (int(evt_no), int(ts))
             if run in run_info:
-                run_info[run].append(int(evt_no))
+                run_info[run].append(run_data)
             else:
-                run_info[run] = [int(evt_no)]
+                run_info[run] = [run_data]
 
     # Check run_info
     cn_label1 = 0
@@ -78,14 +79,16 @@ if __name__ == "__main__":
 
     # Start sending data by looping through runs
     cn_events = 0
-    for run, event_num_list in run_info.items(): 
+    for run, run_data in run_info.items(): 
         img_reader = PsanaImg(exp, run, mode, detector_name)
         phe_reader = PsanaPhotonEnergy(exp, run, mode)
 
-        for i_evt, event_num in enumerate(event_num_list):
+        for i_evt, run_item in enumerate(run_data):
+            event_num, chk_ts = run_item
             img = img_reader.get(event_num, calib=True)
             photon_energy = phe_reader.get(event_num)
             ts = img_reader.timestamp(event_num)
+            assert ts.time() == chk_ts
 
             if i_evt == 0 and cn_runs == 0:
                 # Send beginning timestamp - this will create config, beginrun,
