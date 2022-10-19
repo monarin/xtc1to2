@@ -1,27 +1,33 @@
-Converts xtc1 to xtc2 file  
+<h2>Description</h2>
+Converts xtc1 to xtc2 file
 
-Installation:  
-git clone --recurse-submodules git@github.com:monarin/xtc1to2.git    
+<h2>Installation</h2>
+git clone --recurse-submodules git@github.com:monarin/xtc1to2.git $HOME/xtc1to2    
 
-For SPI (spinifel/cmtip),
-Input: experiment id, run number  
-Output: xtc2 file with intensities and photon energy
+<h2>Running</h2>
+This example (flag_test=True) converts three events from lcls1 to lcls2 format. The output is ./out.xtc2.
 
-Note:  
-List of experiments:  
-https://www.nature.com/articles/s41597-020-00745-2/tables/3  
+Push Side:
+```bash
+ssh psana
+source /reg/g/psdm/etc/psconda.sh
+export PYTHONPATH=$HOME/xtc1to2:$PYTHONPATH
+cd $HOME/xtc1to2/examples
+python zmq_push.py
+```
+Pull Side:
+```bash
+ssh <same node as the push side>
+source /cds/sw/ds/ana/conda2/manage/bin/psconda.sh
+export PYTHONPATH=$HOME/xtc1to2:$PYTHONPATH
+cd $HOME/xtc1to2/examples
+python zmq_pull.py
+```
+<h2>Notes</h2>
+There are many experiment-specific parameters (exp code, run number, detector names, etc.) that need to be changed in both zmq_push.py and zmq_pull.py. For this example, we need Photon Energy information. The python example below shows how we can obtain Photon Energy per shot in lcls1 environment. 
 
-Spinifel hdf5 file contains:  
-  - pixel_position_reciprocal  
-  - pixel_index_map  
-  - intensities  
-  - orientations  
-  - volume  
-Obtain photon energy:  
-Note from Chuck:    
-https://github.com/lcls-psana/psocake/blob/7d21e96961c04f149c64e9c810a8eff7f60d5982/psocake/peakFinderClient.py#L183  
-Code possibly needed:
-1. Photon Energy  
+Obtaining Photon Energy:
+```python
 es = ps.ds.env().epicsStore()  
 try:  
     md.small.wavelength = es.value('SIOC:SYS0:ML00:AO192')  
@@ -40,5 +46,6 @@ except:
         c = 2.99792458e8  # m/s  
         joulesPerEv = 1.602176621e-19  # J/eV  
         photonEnergy = (h / joulesPerEv * c) / (md.small.wavelength * 1e-9)  
-2. Intensities
+```
+
  
