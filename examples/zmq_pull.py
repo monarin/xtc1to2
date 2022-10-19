@@ -1,13 +1,14 @@
 """Receives data from zmq and save in xtc2 format.
 
 Usage:
-    1. Activate psana2 and xtc1to2 environment
+    1. ssh to the same node that you are running zmq_push.py
+    2. Activate psana2 and xtc1to2 environment
        source lcls2/setup_env.sh
        export PYTHONPATH=$HOME/xtc1to2/:$PYTHONPATH
     2. Receive data from zmq
 """
 from xtc1to2.socket.zmqhelper import ZmqReceiver
-from psana.dgrampy import DgramPy, AlgDef, DetectorDef
+from psana.dgramedit import DgramEdit, AlgDef, DetectorDef
 from psana.psexp import TransitionId
 import numpy as np
 import h5py
@@ -41,10 +42,14 @@ def test_output():
     assert np.array_equal(pixel_index_map, pixel_index_map_array)
 
 
+def save_dgramedit(dg_edit, outbuf, outfile):
+    """ Save dgram edit to output buffer and write to file"""
+    dg_edit.save(outbuf)
+    outfile.write(outbuf[:dg_edit.size])
 
 
 if __name__ == "__main__":
-    flag_test = False
+    flag_test = True
 
     # NameId setup
     nodeId = 1 
@@ -59,6 +64,11 @@ if __name__ == "__main__":
     socket = "tcp://127.0.0.1:5557"
     zmq_recv = ZmqReceiver(socket)
 
+
+    # Allocating memory for DgramEdit output buffer
+    memsize = 64000000
+    outbuf = bytearray(memsize)
+
     
     # Open output file for writing
     ofname = 'out.xtc2'
@@ -66,7 +76,7 @@ if __name__ == "__main__":
 
     
     # Create config, algorithm, and detector
-    config = DgramPy(transition_id=TransitionId.Configure)
+    config = DgramEdit(transition_id=TransitionId.Configure)
     alg = AlgDef("raw", 1, 2, 3)
     det = DetectorDef("amopnccd", "pnccd", "detnum1234")
 
@@ -120,43 +130,41 @@ if __name__ == "__main__":
         if "start" in obj:
             config_timestamp = obj["config_timestamp"]
             config.updatetimestamp(config_timestamp)
-            config.save(xtc2file)
+            save_dgramedit(config, outbuf, xtc2file)
 
-            beginrun = DgramPy(transition_id=TransitionId.BeginRun, config=config, ts=config_timestamp + 1)
+            beginrun = DgramEdit(transition_id=TransitionId.BeginRun, config=config, ts=config_timestamp + 1)
             runinfo.runinfo.expt = "amo06516"
             runinfo.runinfo.runnum = 90
             beginrun.adddata(runinfo.runinfo)
             scan.raw.pixel_position = obj['pixel_position']
             scan.raw.pixel_index_map = obj['pixel_index_map']
             beginrun.adddata(scan.raw)
-            beginrun.save(xtc2file)
+            save_dgramedit(beginrun, outbuf, xtc2file)
             
-            beginstep = DgramPy(transition_id=TransitionId.BeginStep, config=config, ts=config_timestamp + 2)
-            #scan.raw.pixel_position = obj['pixel_position']
-            #scan.raw.pixel_index_map = obj['pixel_index_map']
-            #beginstep.adddata(scan.raw)
-            beginstep.save(xtc2file)
+            beginstep = DgramEdit(transition_id=TransitionId.BeginStep, config=config, ts=config_timestamp + 2)
+            save_dgramedit(beginstep, outbuf, xtc2file)
             
-            enable = DgramPy(transition_id=TransitionId.Enable, config=config, ts=config_timestamp + 3)
-            enable.save(xtc2file)
+            enable = DgramEdit(transition_id=TransitionId.Enable, config=config, ts=config_timestamp + 3)
+            save_dgramedit(enable, outbuf, xtc2file)
             current_timestamp = config_timestamp + 3
 
         elif "end" in obj:
-            disable = DgramPy(transition_id=TransitionId.Disable, config=config, ts=current_timestamp + 1)
-            disable.save(xtc2file)
-            endstep = DgramPy(transition_id=TransitionId.EndStep, config=config, ts=current_timestamp + 2)
-            endstep.save(xtc2file)
-            endrun = DgramPy(transition_id=TransitionId.EndRun, config=config, ts=current_timestamp + 3)
-            endrun.save(xtc2file)
+            disable = DgramEdit(transition_id=TransitionId.Disable, config=config, ts=current_timestamp + 1)
+            save_dgramedit(disable, outbuf, xtc2file)
+            current_timestamp = config_timestamp + 3
+            endstep = DgramEdit(transition_id=TransitionId.EndStep, config=config, ts=current_timestamp + 2)
+            save_dgramedit(endstep, outbuf, xtc2file)
+            endrun = DgramEdit(transition_id=TransitionId.EndRun, config=config, ts=current_timestamp + 3)
+            save_dgramedit(endrun, outbuf, xtc2file)
             break
 
         else:
             # Create L1Accept
-            d0 = DgramPy(transition_id=TransitionId.L1Accept, config=config, ts=obj["timestamp"])
+            d0 = DgramEdit(transition_id=TransitionId.L1Accept, config=config, ts=obj["timestamp"])
             pnccd.raw.calib = obj["calib"]
             pnccd.raw.photon_energy = obj["photon_energy"]
             d0.adddata(pnccd.raw)
-            d0.save(xtc2file)
+            save_dgramedit(d0, outbuf, xtc2file)
             current_timestamp = obj["timestamp"]
 
 

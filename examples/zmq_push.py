@@ -1,9 +1,8 @@
-"""An example that reads in lcls1 experiment and push data to
-be saved in lcls2 format via zmq.
+"""An example that reads in lcls1 experiment and selects events (as 
+listed in csv file) then pushes data to be saved in lcls2 format via zmq.
 
 Usage: 
-    1. Get psana1 environment (source /reg/g/psdm/etc/psconda.sh) and 
-    activate py3 env. (conda activate ana-4.0.38-py3)
+    1. Get psana1 environment (source /reg/g/psdm/etc/psconda.sh)
     export PYTHONPATH=$HOME/xtc1to2:$PYTHONPATH
     2. Set exp, run, mode, and detector name
     3. Set path to geometry file 
@@ -17,8 +16,8 @@ import numpy as np
 import csv
 
 
-# Set test flag for selecting out event 796 - 798 and run asser test
-test_flag = False
+# Set test flag for selecting out event 796 - 798 and run assert test
+test_flag = True
 
 # Specify the dataset and detector...
 exp, run, mode, detector_name = "amo06516", "90", "idx", "pnccdFront"
@@ -76,8 +75,6 @@ for i, event_num in enumerate(event_num_list):
     print(
         f"event_num={event_num} ts={ts.time()} img={img.shape} dtype={img.dtype} photon energy:{photon_energy:.3f}"
     )
-    print(f"pixel_position={gmt_reader.pixel_position.shape} dtype={gmt_reader.pixel_position.dtype}")
-    print(f"pixel_index_map={gmt_reader.pixel_index_map.shape} dtype={gmt_reader.pixel_index_map.dtype}")
 
     # Send the dataset
     zmq_send.send_zipped_pickle(data)
