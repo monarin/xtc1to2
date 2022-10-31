@@ -16,73 +16,39 @@ import numpy as np
 import csv
 from psalgos.pypsalgos import PyAlgos
 
-'''
-### mfx
-exp, run, mode, detector_name = "mfxp22820", "13", "idx", "Rayonix"
-data_shape = [1, 1920, 1920]
-# mask = np.load('/reg/data/ana03/scratch/smarches/temp/mfxp22820/smarches/psocake/r0013/mask.npy')
-geom = ('/reg/d/psdm/mfx/mfxp22820/calib/Camera::CalibV1/MfxEndstation.0:Rayonix.0/geometry/0-end.data') 
-### 
-'''
-
-### cxi
-exp, run, mode, detector_name = "cxic0415", "101", "idx", "DscCsPad"
-data_shape = [32,185,388]
-mask=np.ones((data_shape), dtype=np.uint16)
-geom = ( "/reg/d/psdm/cxi/cxic0415/calib/CsPad::CalibV1/CxiDs1.0:Cspad.0/geometry/14-end.data" )
 ##################################
+exptype ='cxi' # mfx or cxi are the options
+test_flag = False
+verbosity = 1 # 0 will print only outside the loop, (0,1] will print more
+
+
+if exptype == 'mfx':
+   data_shape = [1, 1920, 1920]
+   exp, run, mode, detector_name = "mfxp22820", "13", "idx", "Rayonix"
+   mask = np.load('/reg/d/psdm/mfx/mfxp22820/results/mask.npy').astype(np.uint16)
+   #mask=np.ones((data_shape), dtype=np.uint16)
+
+   geom = ('/reg/d/psdm/mfx/mfxp22820/calib/Camera::CalibV1/MfxEndstation.0:Rayonix.0/geometry/0-end.data') 
+   print(mask.shape)
+
+elif exptype == 'cxi': 
+   exp, run, mode, detector_name = "cxic0415", "101", "idx", "DscCsPad"
+   data_shape = [32,185,388]
+   mask=np.ones((data_shape), dtype=np.uint16)
+   geom = ( "/reg/d/psdm/cxi/cxic0415/calib/CsPad::CalibV1/CxiDs1.0:Cspad.0/geometry/14-end.data" )
+
 
 pf_dict={"type":'v3r3', "rank":3, "r0":3.0, "dr":2.0, "nsigm":10, "npix_min":2, "npix_max":30, "amax_thr":300, "atot_thr": 600, "son_min":10}
 
+
 ##################################
 
-
-alg = PyAlgos()
-alg.set_peak_selection_pars(npix_min=pf_dict["npix_min"], npix_max=pf_dict["npix_max"], amax_thr=pf_dict["amax_thr"], atot_thr=pf_dict["atot_thr"], son_min=pf_dict["son_min"])
-
-peak_finder = lambda img: alg.peak_finder_v3r3(img, rank=pf_dict['rank'], r0=pf_dict['r0'], dr=pf_dict['dr'], nsigm=pf_dict['nsigm'], mask=mask )
-
-###################################
-
-
-
-# Set test flag for selecting out event 796 - 798 and run assert test
-test_flag = True
-test_flag = False
-
-verbosity = 0.5
-
-
-# Initialize all readers
-img_reader = PsanaImg(exp, run, mode, detector_name)
-phe_reader = PsanaPhotonEnergy(exp, run, mode)
-gmt_reader = PsanaGeometry(geom)
-
-#######
-"""
-##
-event_num_list = list(range(10000))
-for i, event_num in enumerate(event_num_list):
-    print("i", i, "event_num", event_num)    
-    img = img_reader.get(event_num, calib=True)
-    photon_energy = phe_reader.get(event_num)
-    ts = img_reader.timestamp(event_num)
-##  
-"""
-
-# Initialize zmq sender
-socket = "tcp://127.0.0.1:5557"
-zmq_send = ZmqSender(socket)
-
-# Get list of images by event no. otherwise use 796, 797, 798
 if test_flag:
-    event_num_list = [0,1,2,3, 4, 797]
+    event_num_list = [0, 1, 2, 3, 4, 5]
+    max_npeaks = 2048
     data_array = np.zeros(([len(event_num_list)]+data_shape), dtype=np.float32)
     photon_array = np.zeros(len(event_num_list), dtype=np.float64)
-    # max 2048 peaks, all 0s = no peaks, get the number of peaks
-    #seg_list = []
     npeaks_array = np.zeros(len(event_num_list) , dtype=np.uint16)
-    max_npeaks = 2048
     seg_array = np.zeros((len(event_num_list), max_npeaks) , dtype=np.uint16)
     row_array = np.zeros((len(event_num_list), max_npeaks) , dtype=np.uint16)
     col_array = np.zeros((len(event_num_list), max_npeaks) , dtype=np.uint16)
@@ -90,41 +56,46 @@ if test_flag:
     amax_array = np.zeros((len(event_num_list), max_npeaks) , dtype=np.float32)
     atot_array = np.zeros((len(event_num_list), max_npeaks) , dtype=np.float32)
 
+    
+##################################
 
-else:
-    event_num_list = []
-    with open('amo06516_r90_single_hits.csv') as csvfile:
-        csvreader = csv.reader(csvfile, delimiter=',')
-        for row in csvreader:
-            event_num_list += list(map(int, row))
 
-# print(event_num_list)
+# Initialize peak finder
+alg = PyAlgos()
+alg.set_peak_selection_pars(npix_min=pf_dict["npix_min"], npix_max=pf_dict["npix_max"], amax_thr=pf_dict["amax_thr"], atot_thr=pf_dict["atot_thr"], son_min=pf_dict["son_min"])
 
-event_num_list = list(range(84))
+peak_finder = lambda img: alg.peak_finder_v3r3(img, rank=pf_dict['rank'], r0=pf_dict['r0'], dr=pf_dict['dr'], nsigm=pf_dict['nsigm'], mask=mask )
 
-# event_num_list = list(range(100000))
-event_num_list = range(100000)
+# Initialize all readers
+img_reader = PsanaImg(exp, run, mode, detector_name)
+phe_reader = PsanaPhotonEnergy(exp, run, mode)
+gmt_reader = PsanaGeometry(geom)
+
+total_events = len(img_reader.timestamps)
+
+if not test_flag:
+   event_num_list = range(total_events)
+
+total_events = len(event_num_list)
+
+# Initialize zmq sender
+socket = "tcp://127.0.0.1:5557"
+zmq_send = ZmqSender(socket)
 
 
 for i, event_num in enumerate(event_num_list):
-    # print("i", i, "event_num", event_num)
-    try:
-       img = img_reader.get(event_num, calib=True)
-       photon_energy = phe_reader.get(event_num)
-       ts = img_reader.timestamp(event_num)
-    except:
-       break
+    if verbosity > 0 & verbosity < 1.:
+       print("i", i, "event_num", event_num, 'pct', (event_num / total_events)*100. ,'%')
 
-    ##############################3
+    img = img_reader.get(event_num, calib=True)
+    photon_energy = phe_reader.get(event_num)
+    ts = img_reader.timestamp(event_num)
 
     seg, row, col, npix, amax, atot = None, None, None, None, None, None
-    npeaks = np.uint16(0)
-
     peaks = peak_finder(img)
-
     npeaks = np.uint16(peaks.shape[0])
-    # get the number of peaks
 
+    # get the number of peaks
     if peaks.size>0:       
        seg = np.uint16(peaks[:,0])
        row = np.uint16(peaks[:,1])
@@ -142,7 +113,6 @@ for i, event_num in enumerate(event_num_list):
     if test_flag:
         data_array[i,:,:,:] = img
         photon_array[i] = photon_energy
-        # seg_list.append(seg)
         npeaks_array[i] = npeaks
 
         if npeaks >0:
@@ -181,17 +151,13 @@ for i, event_num in enumerate(event_num_list):
     }
     if verbosity > 0:
        print(
-            f"event_num={event_num} ts={ts.time()} img={img.shape} dtype={img.dtype} photon energy:{photon_energy:.3f}"
+            f"event_num={event_num}/{total_events} ts={ts.time()} npeaks={npeaks} photon energy:{photon_energy:.3f}"
+#            f"event_num={event_num} ts={ts.time()} img={img.shape} dtype={img.dtype} photon energy:{photon_energy:.3f}"
        )
 
     # Send the dataset
     zmq_send.send_zipped_pickle(data)
 
-# Send end message
-
-done_dict = {"end": True}
-#done_dict = {"end": False}
-zmq_send.send_zipped_pickle(done_dict)
 
 if test_flag:
     print("writing file")
@@ -210,5 +176,10 @@ if test_flag:
         f.create_dataset("amax", data = amax_array)
         f.create_dataset("atot", data = atot_array)
         f.create_dataset("peak_finder", data = str(pf_dict))
+
+# Send end message
+done_dict = {"end": True}
+zmq_send.send_zipped_pickle(done_dict)
+
        
 

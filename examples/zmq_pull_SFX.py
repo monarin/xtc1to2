@@ -17,13 +17,18 @@ import numpy as np
 import h5py
 from psana import DataSource
 
-verbosity = 1
-#flag_test = True
-flag_test = False
+############
+
+verbosity = 1 # 0 means no print in the loop
+
+flag_test = True
+
+rdetector = 'Rayonix'
 
 ############
 
-detector_name  = 'rayonix'
+sfx_detector  = 'sfx'
+
 
 def test_output(ofname, data_shape, nevts):
     """Compares known data (saved to hdf5 by the push process) with read data."""
@@ -46,7 +51,7 @@ def test_output(ofname, data_shape, nevts):
 
     ds = DataSource(files=ofname)
     run = next(ds.runs())
-    det = run.Detector(detector_name)
+    det = run.Detector(rdetector)
 
     pp_det = run.Detector('pixel_position')
     pim_det = run.Detector('pixel_index_map')
@@ -89,7 +94,6 @@ def test_output(ofname, data_shape, nevts):
 
     assert np.array_equal(h5npeaks,npeaks_array)
     assert np.array_equal(h5dict, pf_dict)
-
     assert np.array_equal(row,row_array)
     assert np.array_equal(col,col_array)
     assert np.array_equal(npix,npix_array)
@@ -99,6 +103,7 @@ def test_output(ofname, data_shape, nevts):
     assert np.array_equal(photon_energy, photon_array)
     assert np.array_equal(pixel_position, pixel_position_array)
     assert np.array_equal(pixel_index_map, pixel_index_map_array)
+    assert np.array_equal(h5mask, mask)
     print("test passed (!)")
 
 
@@ -113,7 +118,7 @@ if __name__ == "__main__":
     # NameId setup
     nodeId = 1 
     namesId = {
-        detector_name: 0,
+        rdetector: 0,
         "runinfo": 1,
         "scan": 2,
     }
@@ -125,19 +130,19 @@ if __name__ == "__main__":
 
 
     # Allocating memory for DgramEdit output buffer
-    memsize = 64000000
+    #memsize = 64000000
+    memsize = 164000000
+
     outbuf = bytearray(memsize)
 
     
     # Open output file for writing
-    #ofname = 'out.xtc2'
-    #xtc2file = open(ofname, "wb")
 
     
     # Create config, algorithm, and detector
     config = DgramEdit(transition_id=TransitionId.Configure)
     alg = AlgDef("raw", 1, 2, 3)
-    det = DetectorDef(detector_name, detector_name, "detnum1234")
+    det = DetectorDef(rdetector, sfx_detector, "detnum1234")
 
     runinfo_alg = AlgDef("runinfo", 0, 0, 1)
     runinfo_det = DetectorDef("runinfo", "runinfo", "")
@@ -173,7 +178,7 @@ if __name__ == "__main__":
 
 
     # Create detetors
-    det = config.Detector(det, alg, datadef, nodeId=nodeId, namesId=namesId[detector_name])
+    det = config.Detector(det, alg, datadef, nodeId=nodeId, namesId=namesId[rdetector])
 
     runinfo = config.Detector(runinfo_det, 
                               runinfo_alg, 
@@ -207,33 +212,28 @@ if __name__ == "__main__":
             runinfo.runinfo.runnum = obj["run"]
             
             ofname = 'converted/'+obj["exp"]+'_'+str(obj["run"])+'.xtc2'
+            
             print("saving to:", ofname)
 
             xtc2file = open(ofname, "wb")
             ##
 
             save_dgramedit(config, outbuf, xtc2file)
+            print("saved to:", ofname)
 
             beginrun = DgramEdit(transition_id=TransitionId.BeginRun, config=config, ts=config_timestamp + 1)
-            '''
-	    ##
-            runinfo.runinfo.expt = obj["exp"] 
-            runinfo.runinfo.runnum = obj["run"]
-            
-            ofname = obj["exp"]+'.xtc2'
-            print("saving to:", ofname)
 
-            xtc2file = open(ofname, "wb")
-            ##
-            '''
             beginrun.adddata(runinfo.runinfo)
             scan.raw.pixel_position = obj['pixel_position']
             scan.raw.pixel_index_map = obj['pixel_index_map']
+            
+            mask = obj['mask']
+            scan.raw.mask = mask
 
-            scan.raw.mask = obj['mask']
             scan.raw.pf_dict = obj['pf_dict']
 
             beginrun.adddata(scan.raw)
+
             save_dgramedit(beginrun, outbuf, xtc2file)
             
             beginstep = DgramEdit(transition_id=TransitionId.BeginStep, config=config, ts=config_timestamp + 2)
@@ -243,10 +243,8 @@ if __name__ == "__main__":
             save_dgramedit(enable, outbuf, xtc2file)
             current_timestamp = config_timestamp + 3
 
-
-
         elif "end" in obj:
-            print("received end")
+
             disable = DgramEdit(transition_id=TransitionId.Disable, config=config, ts=current_timestamp + 1)
             save_dgramedit(disable, outbuf, xtc2file)
             current_timestamp = config_timestamp + 3
@@ -262,14 +260,12 @@ if __name__ == "__main__":
             d0 = DgramEdit(transition_id=TransitionId.L1Accept, config=config, ts=obj["timestamp"])
             det.raw.calib = obj["calib"]
             det.raw.photon_energy = obj["photon_energy"]
-
             det.raw.npeaks = obj["npeaks"]
 
 
             if verbosity == 1:
                print('++++++++++++++++++++++')
-               print('npeaks', obj['npeaks'])
-               print('row',obj['row'])
+               print("nevent:",  nevts, ', npeaks:', obj['npeaks'])
                print('++++++++++++++++++++++')
 
             if type(obj['seg'])==type(None):

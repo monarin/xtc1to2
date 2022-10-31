@@ -45,6 +45,9 @@ class PsanaImg:
 
         # Set up detector
         self.detector = psana.Detector(detector_name)
+        # set flag (for Chuck)
+        self.detector.do_reshape_2d_to_3d(flag=True) 
+
 
     def get(self, event_num, calib=False):
         # Fetch the timestamp according to event number
